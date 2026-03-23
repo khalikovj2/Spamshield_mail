@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SpamShield — Email Classifier</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; }
+
+body {
+  background: #ffffff;
+  color: #0a0a0a;
+  font-family: 'Inter', sans-serif;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── TOP BAR ── */
+nav {
+  border-bottom: 1px solid #f0f0f0;
+  padding: 0 40px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky; top: 0;
+  background: rgba(255,255,255,0.9);
+  backdrop-filter: blur(12px);
+  z-index: 100;
+}
+.nav-logo {
+  font-size: 15px; font-weight: 600; letter-spacing: -0.3px;
+  display: flex; align-items: center; gap: 8px;
+}
+.nav-logo-mark {
+  width: 24px; height: 24px;
+  background: #0a0a0a; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 12px;
+}
+.nav-right {
+  display: flex; align-items: center; gap: 24px;
+  font-size: 13px; color: #888; font-weight: 500;
+}
+.nav-status {
+  display: flex; align-items: center; gap: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: #22c55e;
+}
+.status-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #22c55e;
+  animation: pulse 2.5s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+/* ── MAIN ── */
+main {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 72px 24px 100px;
+}
+
+/* ── HERO ── */
+.hero { margin-bottom: 56px; }
+.hero-eyebrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; font-weight: 500;
+  color: #888; letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+.hero h1 {
+  font-size: clamp(36px, 6vw, 52px);
+  font-weight: 700;
+  letter-spacing: -2px;
+  line-height: 1.05;
+  margin-bottom: 16px;
+  color: #0a0a0a;
+}
+.hero h1 em {
+  font-style: normal;
+  background: linear-gradient(135deg, #ef4444, #f97316);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.hero p {
+  font-size: 16px; color: #666;
+  line-height: 1.65; font-weight: 400;
+  max-width: 480px;
+}
+
+/* ── STATS ── */
+.stats {
+  display: flex; gap: 32px;
+  margin-bottom: 48px;
+  padding-bottom: 48px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.stat { }
+.stat-n {
+  font-size: 28px; font-weight: 700;
+  letter-spacing: -1px; line-height: 1;
+  margin-bottom: 3px;
+}
+.stat-n.red   { color: #ef4444; }
+.stat-n.green { color: #22c55e; }
+.stat-n.blue  { color: #0a0a0a; }
+.stat-l {
+  font-size: 12px; color: #aaa; font-weight: 500;
+  letter-spacing: 0.2px;
+}
+
+/* ── INPUT SECTION ── */
+.section-label {
+  font-size: 12px; font-weight: 600;
+  color: #0a0a0a; letter-spacing: 0.2px;
+  margin-bottom: 10px;
+  display: flex; align-items: center; gap: 6px;
+}
+.section-label span {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; font-weight: 500; color: #aaa;
+}
+
+textarea {
+  width: 100%; min-height: 120px;
+  border: 1.5px solid #e8e8e8;
+  border-radius: 10px;
+  background: #fafafa;
+  color: #0a0a0a;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px; line-height: 1.6;
+  padding: 14px 16px;
+  resize: vertical; outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  margin-bottom: 12px;
+}
+textarea::placeholder { color: #bbb; }
+textarea:focus {
+  border-color: #0a0a0a;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(10,10,10,0.06);
+}
+
+/* ── EXAMPLES ── */
+.examples-wrap { margin-bottom: 20px; }
+.examples-label {
+  font-size: 11px; color: #bbb; font-weight: 500;
+  margin-bottom: 8px; letter-spacing: 0.3px;
+}
+.examples {
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+.ex {
+  font-size: 12px; font-weight: 500;
+  padding: 5px 12px; border-radius: 100px;
+  cursor: pointer; transition: all 0.12s;
+  border: 1.5px solid; white-space: nowrap;
+}
+.ex.spam {
+  color: #ef4444; border-color: #fecaca;
+  background: #fff5f5;
+}
+.ex.spam:hover { background: #fee2e2; border-color: #ef4444; }
+.ex.ham {
+  color: #22c55e; border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+.ex.ham:hover { background: #dcfce7; border-color: #22c55e; }
+
+/* ── BUTTON ── */
+.actions { display: flex; gap: 8px; }
+.btn-primary {
+  flex: 1;
+  background: #0a0a0a; color: #fff;
+  border: none; border-radius: 10px;
+  padding: 13px 24px;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px; font-weight: 600;
+  cursor: pointer; letter-spacing: -0.2px;
+  transition: all 0.15s;
+  display: flex; align-items: center;
+  justify-content: center; gap: 8px;
+}
+.btn-primary:hover {
+  background: #222;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+}
+.btn-primary:active { transform: translateY(0); box-shadow: none; }
+.btn-secondary {
+  background: #fff; color: #666;
+  border: 1.5px solid #e8e8e8;
+  border-radius: 10px;
+  padding: 13px 18px;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px; font-weight: 500;
+  cursor: pointer; transition: all 0.12s;
+}
+.btn-secondary:hover { border-color: #ccc; color: #333; }
+
+/* ── RESULT ── */
+#result {
+  display: none; margin-top: 24px;
+  animation: up 0.35s cubic-bezier(0.16,1,0.3,1) both;
+}
+@keyframes up {
+  from { opacity:0; transform:translateY(12px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+
+.result-main {
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 12px;
+  border: 1.5px solid;
+}
+.result-main.spam {
+  background: #fff5f5;
+  border-color: #fecaca;
+}
+.result-main.ham {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.result-top {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.result-verdict {
+  display: flex; align-items: center; gap: 12px;
+}
+.verdict-icon {
+  width: 40px; height: 40px; border-radius: 10px;
+  display: flex; align-items: center;
+  justify-content: center; font-size: 18px;
+  flex-shrink: 0;
+}
+.spam .verdict-icon { background: #fee2e2; }
+.ham  .verdict-icon { background: #dcfce7; }
+
+.verdict-label {
+  font-size: 18px; font-weight: 700;
+  letter-spacing: -0.5px;
+}
+.spam .verdict-label { color: #dc2626; }
+.ham  .verdict-label { color: #16a34a; }
+
+.verdict-sub {
+  font-size: 12px; color: #888; margin-top: 2px;
+  font-weight: 400;
+}
+
+.confidence-badge {
+  text-align: right;
+}
+.conf-num {
+  font-size: 28px; font-weight: 700;
+  letter-spacing: -1px; line-height: 1;
+}
+.spam .conf-num { color: #dc2626; }
+.ham  .conf-num { color: #16a34a; }
+.conf-label {
+  font-size: 11px; color: #aaa; font-weight: 500;
+  letter-spacing: 0.2px;
+}
+
+/* ── PROB BARS ── */
+.prob-bars { display: flex; flex-direction: column; gap: 10px; }
+.prob-row-item {
+  display: flex; align-items: center; gap: 12px;
+}
+.prob-name {
+  font-size: 12px; font-weight: 500; color: #666;
+  min-width: 36px;
+}
+.prob-track {
+  flex: 1; height: 5px;
+  background: rgba(0,0,0,0.06);
+  border-radius: 100px; overflow: hidden;
+}
+.prob-fill {
+  height: 100%; border-radius: 100px;
+  transition: width 1s cubic-bezier(0.16,1,0.3,1);
+}
+.prob-fill.red   { background: #ef4444; }
+.prob-fill.green { background: #22c55e; }
+.prob-pct {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px; font-weight: 500;
+  min-width: 38px; text-align: right;
+}
+.prob-pct.red   { color: #ef4444; }
+.prob-pct.green { color: #22c55e; }
+
+/* ── INDICATORS ── */
+.indicators {
+  background: #fafafa;
+  border: 1.5px solid #f0f0f0;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-top: 12px;
+}
+.ind-head {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.ind-title {
+  font-size: 12px; font-weight: 600; color: #0a0a0a;
+}
+.ind-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; font-weight: 500;
+  background: #fee2e2; color: #dc2626;
+  padding: 2px 8px; border-radius: 100px;
+}
+.ind-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.ind-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  background: #fff; color: #dc2626;
+  border: 1.5px solid #fecaca;
+  padding: 3px 10px; border-radius: 6px;
+}
+.ind-none {
+  font-size: 12px; color: #bbb; font-style: italic;
+}
+
+/* ── HISTORY ── */
+.history-section { margin-top: 48px; }
+.history-header {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.history-title {
+  font-size: 14px; font-weight: 600;
+  color: #0a0a0a; letter-spacing: -0.2px;
+}
+.clear-btn {
+  font-size: 12px; color: #aaa; font-weight: 500;
+  cursor: pointer; transition: color 0.12s;
+  background: none; border: none;
+}
+.clear-btn:hover { color: #555; }
+
+.hist-list { display: flex; flex-direction: column; gap: 6px; }
+.hist-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px;
+  background: #fafafa; border: 1.5px solid #f0f0f0;
+  border-radius: 8px;
+  transition: border-color 0.12s;
+  animation: up 0.3s ease both;
+}
+.hist-item:hover { border-color: #e0e0e0; }
+.hist-chip {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; font-weight: 500;
+  padding: 3px 8px; border-radius: 5px;
+  flex-shrink: 0; letter-spacing: 0.5px;
+}
+.hist-chip.spam { background: #fee2e2; color: #dc2626; }
+.hist-chip.ham  { background: #dcfce7; color: #16a34a; }
+.hist-text {
+  flex: 1; font-size: 12px; color: #666;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.hist-conf {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: #aaa; flex-shrink: 0;
+}
+.hist-empty {
+  font-size: 13px; color: #bbb;
+  text-align: center; padding: 32px;
+  border: 1.5px dashed #e8e8e8;
+  border-radius: 10px;
+}
+
+/* ── DIVIDER ── */
+.divider {
+  height: 1px; background: #f0f0f0;
+  margin: 48px 0;
+}
+
+/* ── SPINNER ── */
+.spinner {
+  width: 15px; height: 15px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  display: none;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">
+    <div class="nav-logo-mark">✦</div>
+    SpamShield
+  </div>
+  <div class="nav-right">
+    <div class="nav-status">
+      <div class="status-dot"></div>
+      Model active
+    </div>
+  </div>
+</nav>
+
+<main>
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-eyebrow">Email Intelligence</div>
+    <h1>Detect <em>spam</em><br>instantly.</h1>
+    <p>Paste any email and get an instant verdict. Powered by TF-IDF and logistic regression trained on 200+ labeled examples.</p>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-n blue" id="s-total">0</div>
+      <div class="stat-l">Analyzed</div>
+    </div>
+    <div class="stat">
+      <div class="stat-n red" id="s-spam">0</div>
+      <div class="stat-l">Spam</div>
+    </div>
+    <div class="stat">
+      <div class="stat-n green" id="s-ham">0</div>
+      <div class="stat-l">Legitimate</div>
+    </div>
+  </div>
+
+  <!-- INPUT -->
+  <div class="section-label">
+    Email content <span>Ctrl+Enter to scan</span>
+  </div>
+  <textarea id="email-in"
+    placeholder="Paste email content here...&#10;&#10;Try: Congratulations! You have won $1,000,000!"></textarea>
+
+  <!-- EXAMPLES -->
+  <div class="examples-wrap">
+    <div class="examples-label">Quick examples</div>
+    <div class="examples">
+      <div class="ex spam" onclick="setEx(this)">Won a million dollars</div>
+      <div class="ex spam" onclick="setEx(this)">URGENT: Account suspended</div>
+      <div class="ex spam" onclick="setEx(this)">FREE iPhone click now</div>
+      <div class="ex spam" onclick="setEx(this)">Earn $5000 from home</div>
+      <div class="ex ham" onclick="setEx(this)">Meeting rescheduled to 3pm</div>
+      <div class="ex ham" onclick="setEx(this)">Please review attached report</div>
+      <div class="ex ham" onclick="setEx(this)">Your thesis looks great</div>
+      <div class="ex ham" onclick="setEx(this)">Can we grab coffee today</div>
+    </div>
+  </div>
+
+  <!-- ACTIONS -->
+  <div class="actions">
+    <button class="btn-primary" id="btn" onclick="analyze()">
+      <div class="spinner" id="spin"></div>
+      <span id="btn-txt">Analyze email</span>
+    </button>
+    <button class="btn-secondary" onclick="clearAll()">Clear</button>
+  </div>
+
+  <!-- RESULT -->
+  <div id="result">
+    <div class="result-main" id="result-card">
+      <div class="result-top">
+        <div class="result-verdict">
+          <div class="verdict-icon" id="v-icon">?</div>
+          <div>
+            <div class="verdict-label" id="v-label">—</div>
+            <div class="verdict-sub" id="v-sub">—</div>
+          </div>
+        </div>
+        <div class="confidence-badge">
+          <div class="conf-num" id="v-conf">—</div>
+          <div class="conf-label">confidence</div>
+        </div>
+      </div>
+
+      <div class="prob-bars">
+        <div class="prob-row-item">
+          <div class="prob-name">Spam</div>
+          <div class="prob-track">
+            <div class="prob-fill red" id="bar-spam" style="width:0%"></div>
+          </div>
+          <div class="prob-pct red" id="pct-spam">0%</div>
+        </div>
+        <div class="prob-row-item">
+          <div class="prob-name">Ham</div>
+          <div class="prob-track">
+            <div class="prob-fill green" id="bar-ham" style="width:0%"></div>
+          </div>
+          <div class="prob-pct green" id="pct-ham">0%</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="indicators">
+      <div class="ind-head">
+        <div class="ind-title">Spam indicators</div>
+        <div class="ind-badge" id="ind-badge">0 found</div>
+      </div>
+      <div class="ind-list" id="ind-list">
+        <span class="ind-none">None detected</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- HISTORY -->
+  <div class="history-section">
+    <div class="history-header">
+      <div class="history-title">Scan history</div>
+      <button class="clear-btn" onclick="clearHist()">Clear all</button>
+    </div>
+    <div class="hist-list" id="hist-list">
+      <div class="hist-empty">No emails analyzed yet</div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+const SPAM_W=["free","win","winner","prize","click","urgent","offer","million","cash","money","claim","congratulations","guaranteed","limited","verify","suspended","alert","bonus","instantly","selected","approved","awarded","earn","income","profit","rich","opportunity","secret","hot","singles","medication","pill","weight","miracle","cheap","discount","percent","save","loan","credit","debt","bitcoin","crypto","invest","lottery","sweepstakes","inheritance","transfer","paypal","password","expired","compromised","virus","infected","final","notice","expire","act","now","immediately","exclusive","apply","special","deal","reward","gift","voucher"];
+const HAM_W=["meeting","report","attached","deadline","review","please","schedule","team","project","feedback","update","follow","thesis","research","professor","assignment","conference","semester","library","appointment","flight","hotel","invoice","contract","signature","training","course","grade","exam","homework","study","lecture","seminar","hackathon","internship","mentor","scholarship","graduation","lab","experiment","dataset","algorithm","code","debug","repository","pull","request","merge","commit"];
+
+function tok(t){return t.toLowerCase().replace(/[^a-z0-9\s]/g,' ').split(/\s+/).filter(Boolean);}
+
+function classify(text){
+  const ts=new Set(tok(text));
+  let sp=0,hp=0;const fi=[];
+  for(const w of SPAM_W) if(ts.has(w)){sp+=2.5;fi.push(w);}
+  for(const w of HAM_W)  if(ts.has(w)) hp+=2.0;
+  const u=(text.match(/[A-Z]/g)||[]).length/Math.max(text.length,1);
+  if(u>0.25)sp+=3;
+  if((text.match(/!/g)||[]).length>2)sp+=2;
+  if(/\$/g.test(text))sp+=2;
+  if(/click here/i.test(text))sp+=3;
+  if(/act now/i.test(text))sp+=3;
+  if(/limited time/i.test(text))sp+=2.5;
+  if(/work from home/i.test(text))sp+=2.5;
+  if(/no experience/i.test(text))sp+=2;
+  if(/\d{4,}/.test(text))sp+=1.5;
+  const prob=1/(1+Math.exp(-(sp-hp)*0.35));
+  return{
+    spamP:Math.round(prob*1000)/10,
+    hamP:Math.round((1-prob)*1000)/10,
+    isSpam:prob>=0.5,
+    conf:Math.round(Math.max(prob,1-prob)*1000)/10,
+    inds:[...new Set(fi)].slice(0,8),
+  };
+}
+
+let hist=[],tot=0,sp=0,hm=0;
+
+function analyze(){
+  const txt=document.getElementById('email-in').value.trim();
+  if(!txt){
+    const ta=document.getElementById('email-in');
+    ta.style.borderColor='#ef4444';
+    ta.style.boxShadow='0 0 0 3px rgba(239,68,68,0.1)';
+    setTimeout(()=>{ta.style.borderColor='';ta.style.boxShadow='';},800);
+    return;
+  }
+  document.getElementById('spin').style.display='block';
+  document.getElementById('btn-txt').textContent='Analyzing...';
+  document.getElementById('btn').disabled=true;
+  document.getElementById('btn').style.opacity='0.7';
+
+  setTimeout(()=>{
+    const r=classify(txt);
+    showResult(r);
+    tot++;if(r.isSpam)sp++;else hm++;
+    document.getElementById('s-total').textContent=tot;
+    document.getElementById('s-spam').textContent=sp;
+    document.getElementById('s-ham').textContent=hm;
+    hist.unshift({txt,r});
+    renderHist();
+    document.getElementById('spin').style.display='none';
+    document.getElementById('btn-txt').textContent='Analyze email';
+    document.getElementById('btn').disabled=false;
+    document.getElementById('btn').style.opacity='';
+  },500);
+}
+
+function showResult(r){
+  const el=document.getElementById('result');
+  el.style.display='block';
+  el.style.animation='none';void el.offsetWidth;el.style.animation='';
+  const card=document.getElementById('result-card');
+  card.className='result-main '+(r.isSpam?'spam':'ham');
+  document.getElementById('v-icon').textContent=r.isSpam?'🚨':'✅';
+  document.getElementById('v-label').textContent=r.isSpam?'Spam detected':'Looks legitimate';
+  document.getElementById('v-sub').textContent=r.isSpam
+    ?`${r.inds.length} indicator${r.inds.length!==1?'s':''} found — do not click any links`
+    :`No significant spam indicators detected`;
+  document.getElementById('v-conf').textContent=r.conf+'%';
+  setTimeout(()=>{
+    document.getElementById('bar-spam').style.width=r.spamP+'%';
+    document.getElementById('bar-ham').style.width=r.hamP+'%';
+    document.getElementById('pct-spam').textContent=r.spamP+'%';
+    document.getElementById('pct-ham').textContent=r.hamP+'%';
+  },80);
+  document.getElementById('ind-badge').textContent=r.inds.length+' found';
+  const il=document.getElementById('ind-list');
+  il.innerHTML=r.inds.length
+    ?r.inds.map(w=>`<span class="ind-tag">${w}</span>`).join('')
+    :'<span class="ind-none">None detected</span>';
+}
+
+function renderHist(){
+  const list=document.getElementById('hist-list');
+  if(!hist.length){list.innerHTML='<div class="hist-empty">No emails analyzed yet</div>';return;}
+  list.innerHTML=hist.slice(0,8).map(h=>`
+    <div class="hist-item">
+      <div class="hist-chip ${h.r.isSpam?'spam':'ham'}">${h.r.isSpam?'SPAM':'HAM'}</div>
+      <div class="hist-text">${h.txt.slice(0,70)}${h.txt.length>70?'…':''}</div>
+      <div class="hist-conf">${h.r.conf}%</div>
+    </div>`).join('');
+}
+
+function clearHist(){hist=[];renderHist();}
+function clearAll(){
+  document.getElementById('email-in').value='';
+  document.getElementById('result').style.display='none';
+  document.getElementById('email-in').focus();
+}
+function setEx(el){
+  document.getElementById('email-in').value=el.textContent;
+  document.getElementById('email-in').focus();
+}
+
+document.getElementById('email-in').addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&e.ctrlKey)analyze();
+});
+</script>
+</body>
+</html>
